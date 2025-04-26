@@ -49,7 +49,6 @@ df.to_csv('frankfurter_exchange_rates.csv', index=False)
 
 #dashbaord build
 
-import pandas as pd
 from dash import Dash, dcc, html, Input, Output
 import plotly.express as px
 

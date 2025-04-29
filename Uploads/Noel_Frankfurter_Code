@@ -1,0 +1,62 @@
+import requests
+import pandas as pd
+from datetime import date, timedelta
+ 
+# Define time range
+end_date = date.today()
+start_date = end_date - timedelta(days=180)
+ 
+base = 'USD'
+symbols = 'VND,AUD,CAD,PLN,MXN,EUR,CHF'
+ 
+# Frankfurter API URL
+url = f"https://api.frankfurter.app/{start_date}..{end_date}?from={base}&to={symbols}"
+ 
+# Fetch data
+response = requests.get(url)
+data = response.json()
+ 
+# Convert to DataFrame
+df = pd.DataFrame(data['rates']).T  # Dates as rows
+df.index.name = 'Date'
+df.reset_index(inplace=True)
+ 
+# Save to CSV
+df.to_csv('frankfurter_exchange_rates.csv', index=False)
+ 
+print(df.head())
+ 
+#App setup
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
+import os
+# Load from CSV
+df_timeseries = pd.read_csv("frankfurter_exchange_rates.csv")
+df_timeseries['Date'] = pd.to_datetime(df_timeseries['Date'])
+# App setup
+app = dash.Dash(__name__)
+app.layout = html.Div([
+    html.H2("USD to Currency Converter"),
+    dcc.Dropdown(
+        id='currency-dropdown',
+        options=[{'label': currency, 'value': currency} for currency in df_timeseries.columns[1:]],
+        value='VND'
+    ),
+    dcc.Graph(id='exchange-rate-graph'),
+])
+# Callback to update graph
+@app.callback(
+    Output('exchange-rate-graph', 'figure'),
+    Input('currency-dropdown', 'value')
+)
+def update_graph(selected_currency):
+    filtered_df = df_timeseries[['Date', selected_currency]]
+    fig = px.line(filtered_df, x='Date', y=selected_currency, title=f'Exchange Rate of {selected_currency} to USD')
+    return fig
+# Run the app
+if __name__ == '__main__':
+    app.run(debug=True)
+# This code fetches historical exchange rates from the Frankfurter API, saves them to a CSV file, and then uses Dash to create a web app that allows users to visualize the exchange rates over time.
+ 
+ 

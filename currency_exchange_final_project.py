@@ -57,7 +57,7 @@ df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 df.rename(columns={'Date': 'Week_start'}, inplace=True)
 
-# ✅ Your original print outputs (keep them)
+# ✅ Print outputs
 print(f'Display Data:\n{df.head()}')
 print(f'Statistical Summary:\n{df.describe()}')
 print(f'Checking Null Values:\n{df.isnull().sum()}')
@@ -76,12 +76,14 @@ latest_rates = df.iloc[-1].drop('Week_start')
 first_rates = df.iloc[0].drop('Week_start')
 percentage_change = ((latest_rates - first_rates) / first_rates) * 100
 
-# Calculate volatility and keep Week_start
+# Calculate volatility
 volatility = df.drop('Week_start', axis=1).rolling(window=4).std()
-volatility['Week_start'] = df['Week_start']   # ✅ Fix: Add dates back
+volatility['Week_start'] = df['Week_start']
 
 # App layout
 app.layout = html.Div([
+
+    # Section 1: Title + Dropdown + Input + Line Chart
     html.Div([
         html.H2("Currency Exchange Rates vs USD", style={
             'textAlign': 'center',
@@ -95,14 +97,41 @@ app.layout = html.Div([
         dcc.Dropdown(
             options=[{'label': currency_names.get(col, col), 'value': col} for col in df.columns if col != 'Week_start'],
             value=default_currency,
-            id='currency-dropdown'
+            id='currency-dropdown',
+            style={   # 🌟 Cute Dropdown Styling
+                'borderRadius': '8px',
+                'padding': '8px',
+                'boxShadow': '0px 2px 6px rgba(0,0,0,0.1)',
+                'backgroundColor': 'white',
+                'marginBottom': '20px'
+            }
         ),
         html.Label("USD Amount:", style={'fontWeight': 'bold'}),
-        dcc.Input(id='usd-input', type='number', value=1),
+        dcc.Input(
+            id='usd-input',
+            type='number',
+            value=1,
+            style={   # Optional: make input also a little cuter
+                'width': '150px',
+                'padding': '10px',
+                'borderRadius': '8px',
+                'border': '1px solid lightgray',
+                'marginBottom': '20px'
+            }
+        ),
         html.Div(id='converted-value'),
-        dcc.Graph(id='line-chart'),
-    ], style={'width': '80%', 'margin': 'auto'}),
+        dcc.Graph(id='line-chart', style={'width': '80%', 'margin': 'auto'})
+    ], style={
+        'width': '80%',
+        'margin': 'auto',
+        'backgroundColor': 'white',
+        'padding': '20px',
+        'borderRadius': '10px',
+        'boxShadow': '0px 2px 8px rgba(0,0,0,0.1)',
+        'marginBottom': '30px'
+    }),
 
+    # Section 2: Table + Bar Chart Side by Side
     html.Div([
         html.Div([
             html.H3("Latest Exchange Rates (vs USD)", style={
@@ -136,7 +165,8 @@ app.layout = html.Div([
                     'textAlign': 'center',
                     'fontSize': 16,
                     'fontFamily': 'Arial',
-                    'padding': '10px'
+                    'padding': '10px',
+                    'transition': 'background-color 0.3s ease'  # Smooth transition
                 },
                 style_header={
                     'backgroundColor': 'lightgrey',
@@ -144,54 +174,104 @@ app.layout = html.Div([
                     'fontFamily': 'Arial Black',
                     'textAlign': 'center'
                 },
-                style_cell_conditional=[
+                style_data_conditional=[    # 🌸 Cute Pastel Hover
+                    {
+                        'if': {'state': 'active'},
+                        'backgroundColor': '#e6e6ff',  # light pastel purple
+                        'border': '1px solid #d3d3d3'
+                    },
                     {'if': {'column_id': 'Currency'}, 'width': '70%', 'textAlign': 'left'},
-                    {'if': {'column_id': 'Rate'}, 'width': '30%', 'textAlign': 'center'},
-                ],
+                    {'if': {'column_id': 'Rate'}, 'width': '30%', 'textAlign': 'center'}
+                ]
             )
-        ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top'}),
+        ], style={
+            'flex': '1',
+            'backgroundColor': 'white',
+            'padding': '20px',
+            'borderRadius': '10px',
+            'boxShadow': '0px 2px 8px rgba(0,0,0,0.1)',
+            'marginRight': '15px',
+            'marginBottom': '30px'
+        }),
 
         html.Div([
+            html.H3("1-Year % Change vs USD", style={
+                'textAlign': 'center',
+                'color': 'black',
+                'fontSize': '20px',
+                'fontWeight': 'bold',
+                'fontFamily': 'Arial Black',
+                'marginBottom': '10px'
+            }),
             dcc.Graph(
                 id='bar-change',
                 figure=px.bar(
                     x=percentage_change.index,
                     y=percentage_change.values,
                     labels={'x': 'Currency', 'y': '% Change'},
-                    title='1-Year % Change vs USD'
+                    title=''
                 ).update_layout(
                     title_font=dict(size=20, family='Arial Black', color='black'),
                     title_x=0.5
                 )
             )
-        ], style={'width': '48%', 'display': 'inline-block', 'verticalAlign': 'top'})
-    ], style={'width': '80%', 'margin': 'auto', 'paddingTop': '50px'}),
+        ], style={
+            'flex': '1',
+            'backgroundColor': 'white',
+            'padding': '20px',
+            'borderRadius': '10px',
+            'boxShadow': '0px 2px 8px rgba(0,0,0,0.1)',
+            'marginBottom': '30px'
+        })
+    ], style={
+        'width': '80%',
+        'margin': 'auto',
+        'paddingTop': '50px',
+        'display': 'flex',
+        'justifyContent': 'space-between',
+        'flexWrap': 'wrap'
+    }),
 
+    # Section 3: Volatility Line Chart
     html.Div([
-        html.H3("", style={
+        html.H3("Currency Volatility (Weekly Std Dev)", style={
             'textAlign': 'center',
             'color': 'black',
             'fontSize': '20px',
             'fontWeight': 'bold',
-            'fontFamily': 'Arial Black'
+            'fontFamily': 'Arial Black',
+            'marginBottom': '20px'
         }),
         dcc.Graph(
             id='volatility-line',
             figure=px.line(
                 volatility,
-                x=volatility.index,   
-                y=volatility.columns.drop('Week_start'), 
+                x=volatility.index,
+                y=volatility.columns.drop('Week_start'),
                 labels={'value': 'Volatility', 'variable': 'Currency'},
-                title='Currency Volatility (Weekly Std Dev)'
+                title=''
             ).update_layout(
                 title_font=dict(size=20, family='Arial Black', color='black'),
                 title_x=0.5
             )
         )
-    ], style={'width': '80%', 'margin': 'auto', 'paddingTop': '50px'})
-])
+    ], style={
+        'width': '80%',
+        'margin': 'auto',
+        'backgroundColor': 'white',
+        'padding': '20px',
+        'borderRadius': '10px',
+        'boxShadow': '0px 2px 8px rgba(0,0,0,0.1)',
+        'marginBottom': '30px'
+    })
 
-# Callbacks to update the graph and conversion
+], style={
+    'backgroundColor': '#f5f7fa',
+    'minHeight': '100vh',
+    'padding': '30px'
+})
+
+# Callback
 @app.callback(
     Output('line-chart', 'figure'),
     Output('converted-value', 'children'),
@@ -216,7 +296,6 @@ def update_chart(currency, amount):
     latest_rate = df[currency].iloc[-1]
     converted = amount * latest_rate
     return fig, f"{amount:,.2f} USD = {converted:,.2f} {currency} (latest)"
-
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)

@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from dash import Dash, dcc, html, Input, Output, dash_table
 import plotly.express as px
 
-# ---------------------------- Data Fetch and Preparation ---------------------------- #
 
 # Define time range
 end_date = date.today()
@@ -57,7 +56,7 @@ df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 df.rename(columns={'Date': 'Week_start'}, inplace=True)
 
-# ✅ Print outputs
+# Print outputs
 print(f'Display Data:\n{df.head()}')
 print(f'Statistical Summary:\n{df.describe()}')
 print(f'Checking Null Values:\n{df.isnull().sum()}')
@@ -98,7 +97,7 @@ app.layout = html.Div([
             options=[{'label': currency_names.get(col, col), 'value': col} for col in df.columns if col != 'Week_start'],
             value=default_currency,
             id='currency-dropdown',
-            style={   # 🌟 Cute Dropdown Styling
+            style={   #Cute Dropdown Styling
                 'borderRadius': '8px',
                 'padding': '8px',
                 'boxShadow': '0px 2px 6px rgba(0,0,0,0.1)',
@@ -174,7 +173,7 @@ app.layout = html.Div([
                     'fontFamily': 'Arial Black',
                     'textAlign': 'center'
                 },
-                style_data_conditional=[    # 🌸 Cute Pastel Hover
+                style_data_conditional=[    # Cute Pastel Hover
                     {
                         'if': {'state': 'active'},
                         'backgroundColor': '#e6e6ff',  # light pastel purple

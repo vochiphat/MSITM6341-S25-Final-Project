@@ -1,0 +1,178 @@
+import os
+import requests
+import pandas as pd
+from datetime import date, timedelta
+
+# ---------------------------- Data Fetch and Preparation ---------------------------- #
+
+# Define time range
+end_date = date.today()
+start_date = end_date - timedelta(days=365 * 2)
+today = date.today().strftime('%Y-%m-%d')
+
+# Base currency and symbols
+base = 'USD'
+symbols = 'KRW,AUD,CAD,PLN,MXN,EUR,INR,CNY,HKD,THB,SGD'
+
+# Currency full names
+currency_names = {
+    'KRW': 'KRW - South Korean Won',
+    'AUD': 'AUD - Australian Dollar',
+    'CAD': 'CAD - Canadian Dollar',
+    'PLN': 'PLN - Polish Zloty',
+    'MXN': 'MXN - Mexican Peso',
+    'EUR': 'EUR - Euro',
+    'INR': 'INR - Indian Rupee',
+    'CNY': 'CNY - Chinese Yuan',
+    'HKD': 'HKD - Hong Kong Dollar',
+    'THB': 'THB - Thai Baht',
+    'SGD': 'SGD - Singapore Dollar',
+    'USD': 'USD - US Dollar'
+}
+
+# Frankfurter API URL
+url = f"https://api.frankfurter.app/{start_date}..{end_date}?from={base}&to={symbols}"
+
+# Data file name
+data_file = 'frankfurter_exchange_rates.csv'
+
+# Check if data file exists; if not, fetch it
+if not os.path.exists(data_file):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        df = pd.DataFrame(data['rates']).T
+        df.index.name = 'Date'
+        df.reset_index(inplace=True)
+        df.to_csv(data_file, index=False)
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(f"Failed to fetch data: {e}")
+
+# Load the data
+df = pd.read_csv(data_file)
+df['Date'] = pd.to_datetime(df['Date'])
+df = df.sort_values('Date')
+df.rename(columns={'Date': 'Week_start'}, inplace=True)
+
+# Display basic information
+print(f'Display Data:\n{df.head()}')
+print(f'Statistical Summary:\n{df.describe()}')
+print(f'Checking Null Values:\n{df.isnull().sum()}')
+
+# ---------------------------- Dashboard Build ---------------------------- #
+
+from dash import Dash, dcc, html, Input, Output
+import plotly.express as px
+import plotly.graph_objects as go
+
+# Initialize Dash app
+app = Dash(__name__)
+server = app.server
+
+# Pick default dropdown currency dynamically
+default_currency = df.columns[1] if len(df.columns) > 1 else None
+
+# Pre-calculate data for additional graphs
+latest_rates = df.iloc[-1].drop('Week_start')
+first_rates = df.iloc[0].drop('Week_start')
+percentage_change = ((latest_rates - first_rates) / first_rates) * 100
+
+volatility = df.drop('Week_start', axis=1).rolling(window=4).std()
+
+# App layout
+app.layout = html.Div([
+    html.Div([
+        html.H2("Currency Exchange Rates vs USD", style={
+            'textAlign': 'center',
+            'color': 'Black',
+            'fontSize': '32px',
+            'fontWeight': 'bold',
+            'marginTop': '20px'
+        }),
+        html.H4(f"Current Date: {today}", style={'textAlign': 'center'}),
+        dcc.Dropdown(
+            options=[{'label': currency_names.get(col, col), 'value': col} for col in df.columns if col != 'Week_start'],
+            value=default_currency,
+            id='currency-dropdown'
+        ),
+        dcc.Graph(id='line-chart'),
+        html.Label("USD Amount:", style={'fontWeight': 'bold'}),
+        dcc.Input(id='usd-input', type='number', value=1),
+        html.Div(id='converted-value')
+    ], style={'width': '80%', 'margin': 'auto'}),
+
+    html.Div([
+        html.Div([
+            dcc.Graph(
+                id='bar-latest',
+                figure=px.bar(
+                    x=latest_rates.index,
+                    y=latest_rates.values,
+                    labels={'x': 'Currency', 'y': 'Rate vs USD'},
+                    title='Latest Exchange Rates (vs USD)'
+                )
+            )
+        ], style={'width': '48%', 'display': 'inline-block', 'padding': '0 10'}),
+
+        html.Div([
+            dcc.Graph(
+                id='bar-change',
+                figure=px.bar(
+                    x=percentage_change.index,
+                    y=percentage_change.values,
+                    labels={'x': 'Currency', 'y': '% Change'},
+                    title='1-Year % Change vs USD'
+                )
+            )
+        ], style={'width': '48%', 'display': 'inline-block', 'padding': '0 10'})
+    ], style={'width': '90%', 'margin': 'auto', 'paddingTop': '50px'}),
+
+    html.Div([
+        html.H3("Currency Volatility (Weekly Std Dev)", style={'textAlign': 'center'}),
+        dcc.Graph(
+            id='volatility-line',
+            figure=px.line(
+                volatility,
+                x=volatility.index,
+                y=volatility.columns,
+                labels={'value': 'Volatility', 'variable': 'Currency'},
+                title='Weekly Volatility of Currencies'
+            )
+        )
+    ], style={'width': '80%', 'margin': 'auto', 'paddingTop': '50px'})
+])
+
+# Callbacks to update the graph and conversion
+@app.callback(
+    Output('line-chart', 'figure'),
+    Output('converted-value', 'children'),
+    Input('currency-dropdown', 'value'),
+    Input('usd-input', 'value')
+)
+def update_chart(currency, amount):
+    full_currency_name = currency_names.get(currency, currency)
+    fig = px.line(
+        df,
+        x='Week_start',
+        y=currency,
+        title=f"{full_currency_name} per 1 {currency_names.get(base, base)}",
+        labels={'Week_start': 'Week Start (Monday)', currency: full_currency_name}
+    )
+    fig.update_layout(xaxis_range=[df['Week_start'].min(), df['Week_start'].max()])
+
+    latest_rate = df[currency].iloc[-1]
+    converted = amount * latest_rate
+    return fig, f"{amount:,.2f} USD = {converted:,.2f} {currency} (latest)"
+
+# Run the app
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=False)
+
+
+# ---------------------------- SUMMARY OF CHANGES ---------------------------- #
+# 1. Added two side-by-side bar charts: Latest Exchange Rates and 1-Year % Change.
+# 2. Added one centered line chart: Weekly Volatility.
+# 3. Used Dash HTML Divs to structure layout cleanly (side-by-side and vertical stacking).
+# 4. Pre-calculated percentage change and volatility.
+# 5. Ensured clean spacing and professional style for the full dashboard.

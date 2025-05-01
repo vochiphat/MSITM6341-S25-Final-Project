@@ -1,3 +1,14 @@
+
+
+# ---------------------------- SUMMARY OF CHANGES ---------------------------- #
+# 1. Added two side-by-side bar charts: Latest Exchange Rates and 1-Year % Change.
+# 2. Added one centered line chart: Weekly Volatility.
+# 3. Used Dash HTML Divs to structure layout cleanly (side-by-side and vertical stacking).
+# 4. Pre-calculated percentage change and volatility.
+# 5. Ensured clean spacing and professional style for the full dashboard.
+
+
+
 import os
 import requests
 import pandas as pd
@@ -169,10 +180,3 @@ def update_chart(currency, amount):
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
 
-
-# ---------------------------- SUMMARY OF CHANGES ---------------------------- #
-# 1. Added two side-by-side bar charts: Latest Exchange Rates and 1-Year % Change.
-# 2. Added one centered line chart: Weekly Volatility.
-# 3. Used Dash HTML Divs to structure layout cleanly (side-by-side and vertical stacking).
-# 4. Pre-calculated percentage change and volatility.
-# 5. Ensured clean spacing and professional style for the full dashboard.

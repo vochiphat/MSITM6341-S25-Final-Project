@@ -38,24 +38,24 @@ url = f"https://api.frankfurter.app/{start_date}..{end_date}?from={base}&to={sym
 data_file = 'frankfurter_exchange_rates.csv'
 
 # Check if data file exists; if not, fetch it
-if not os.path.exists(data_file):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        df = pd.DataFrame(data['rates']).T
-        df.index.name = 'Date'
-        df.reset_index(inplace=True)
-        df.to_csv(data_file, index=False)
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(f"Failed to fetch data: {e}")
+# Always fetch new data
+try:
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
+    df = pd.DataFrame(data['rates']).T
+    df.index.name = 'Date'
+    df.reset_index(inplace=True)
+    df.to_csv(data_file, index=False)  # overwrite with fresh data
+except requests.exceptions.RequestException as e:
+    raise SystemExit(f"Failed to fetch data: {e}")
 
 # Load the data
 df = pd.read_csv(data_file)
 df['Date'] = pd.to_datetime(df['Date'])
 df = df.sort_values('Date')
 df.rename(columns={'Date': 'Week_start'}, inplace=True)
-
+latest_date_in_data = df['Week_start'].max().strftime('%Y-%m-%d')
 # Print outputs
 print(f'Display Data:\n{df.head()}')
 print(f'Statistical Summary:\n{df.describe()}')
@@ -92,7 +92,7 @@ app.layout = html.Div([
             'fontFamily': 'Arial Black',
             'marginTop': '20px'
         }),
-        html.H4(f"Current Date: {today}", style={'textAlign': 'center'}),
+        html.H4(f"Current Date: {latest_date_in_data}", style={'textAlign': 'center'}),
         dcc.Dropdown(
             options=[{'label': currency_names.get(col, col), 'value': col} for col in df.columns if col != 'Week_start'],
             value=default_currency,
